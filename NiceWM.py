@@ -8,7 +8,7 @@ import logging
 import time
 
 
-logging.basicConfig(filename='/home/kaan/NiceWM/NiceWM.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s',level=logging.DEBUG)
+logging.basicConfig(filename='NiceWM.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s',level=logging.DEBUG)
 
 def log(message):
    logging.debug(message)
@@ -22,18 +22,21 @@ class wm(object):
         self.rootWindow = self.display.screen().root  # Get root window
         self.activeWindow=None
         self.currentMode=None
+        self.activeWindowFullscreen=False
         self.displayWidth = self.rootWindow.get_geometry().width  # Get width of display
         self.displayHeight = self.rootWindow.get_geometry().height  # Get height of display
         self.rootWindow.change_attributes(event_mask = X.SubstructureRedirectMask)  # Redirect events from root window
         self.configureKeys()  # Configure key bindings
         self.readConfig()
+        self.workspaces=[]
         log("initialized WM and opened display")
+    
     
 
 
     def readConfig(self):
         parser = configparser.ConfigParser()
-        parser.read('/home/kaan/NiceWM/config.ini')
+        parser.read('config.ini')
         self.inactiveColour=parser.get("Theme","inactive-window-color")
         self.activeColour=parser.get("Theme","active-window-color")
         self.wallpaper=parser.get("Theme","wallpaper")
@@ -54,6 +57,8 @@ class wm(object):
     def redraw(self):
         self.updateBorders()
         self.handleEvents()
+        if len(self.windows) >= 1 and self.activeWindow == None:
+            self.activeWindow = self.windows[1]
     
     def killWindow(self):
         try:
@@ -114,7 +119,8 @@ class wm(object):
         self.j = set(code for code, index in self.display.keysym_to_keycodes(XK.XK_J))
         self.k =set(code for code, index in self.display.keysym_to_keycodes(XK.XK_K))
         self.l =set(code for code, index in self.display.keysym_to_keycodes(XK.XK_L))
-        self.grabbedKeys = [self.left, self.right, self.up, self.down, self.close, self.enter, self.d, self.q, self.r,self.f,self.esc, self.h,self.j,self.k,self.l]
+        self.g =set(code for code, index in self.display.keysym_to_keycodes(XK.XK_G))
+        self.grabbedKeys = [self.left,self.g, self.right, self.up, self.down, self.close, self.enter, self.d, self.q, self.r,self.f,self.esc, self.h,self.j,self.k,self.l]
         for key in self.grabbedKeys:  # For each key to grab,
             self.grabKey(key, X.Mod1Mask)  # Grab the key with the modifer of Alt
 
@@ -150,6 +156,7 @@ class wm(object):
 
     
     def handleKeyPress(self, event):
+
         if event.detail in self.left: self.moveWindow("left")
         elif event.detail in self.right: self.moveWindow("right")
         elif event.detail in self.up: self.moveWindow("up")
@@ -160,8 +167,19 @@ class wm(object):
             self.runProcess(["rofi","-show","run"])      # Alt+D: Launch a program launcher
         elif event.detail in self.q: 
             self.killWindow()                                      # ALT+Q: Close a window
+        if event.detail in self.h:
+            self.resize(2)
+        elif event.detail in self.j:
+            self.resize(3)
+        elif event.detail in self.k:
+            self.resize(1)
+        elif event.detail in self.l:
+            self.resize(0)
+        
         elif event.detail in self.f:
             self.activeWindow.configure(x=0,width=1920,y=0,height=1080)
+        elif event.detail in self.g:
+             self.activeWindow.configure(x=0,width=1000,y=0,height=800)
 
         
         if event.detail in self.h:
@@ -186,6 +204,9 @@ WM=wm()
 
 def main():
     while True:
-        WM.redraw()
-        time.sleep(0.0001)
+        try:
+            WM.redraw()
+            time.sleep(0.001)
+        except Exception as e:
+            log(e)
 main()
